@@ -13,9 +13,4 @@ RUN apt-get clean -y
 USER root
 # Copy code
 ADD ./ /root/QD_classifier
-RUN cd /root/DeepSpeech && pip3 install -r requirements.txt
-
-# Copy models
-ADD build/models/ /root/DeepSpeech/inference/models
-RUN cd /root/DeepSpeech/inference/server/proto_generated && python run_codegen.py
-
+RUN cd /root/QD_classifier && pip3 install -r requirements.txt
