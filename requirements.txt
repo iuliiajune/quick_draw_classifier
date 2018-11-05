@@ -1,3 +1,5 @@
-multiprocessing
 sklearn
 numpy
+tqdm
+matplotlib
+tensorboard

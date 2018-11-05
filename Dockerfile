@@ -5,11 +5,17 @@ MAINTAINER UNN CG_3
 ARG UBUNTU_MIRROR
 RUN /bin/bash -c 'if [[ -n ${UBUNTU_MIRROR} ]]; then sed -i 's#http://archive.ubuntu.com/ubuntu#${UBUNTU_MIRROR}#g' /etc/apt/sources.list; fi'
 
-RUN apt install -y git pkg-config
-RUN apt install -y wget python-pip python-dev net-tools libtool ccache unzip unrar tar xz-utils bzip2 gzip coreutils ntp
-RUN apt-get install -y vim htop nano mc cmake ffmpeg
-RUN apt-get clean -y
+RUN apt-get update 
+RUN apt-get install -y software-properties-common
+RUN add-apt-repository ppa:deadsnakes/ppa
 
+RUN apt-get update
+RUN apt-get install -y python3.6
+RUN apt install -y git pkg-config
+RUN apt install -y wget python3-pip python3.6-dev net-tools libtool ccache unzip unrar tar xz-utils bzip2 gzip coreutils ntp
+RUN apt-get install -y vim htop nano mc cmake
+RUN apt-get clean -y
+RUN pip3 install tensorflow-gpu
 USER root
 # Copy code
 ADD ./ /root/QD_classifier
