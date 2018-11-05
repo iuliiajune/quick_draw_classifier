@@ -133,12 +133,9 @@ def load_dataset(path):
         return pickle.load(f)
 
 
-# create_dataset("binary", max_items_per_class=10000, num_classes=10)
-
-
 class DataProvider:
 
-    def __init__(self, data_path, label_path, num_classes, max_data_len=286):
+    def __init__(self, data_path, label_path, num_classes, max_data_len):
         self.data = load_dataset(data_path)
         self.class_dict = self.read_labels(label_path)
         self.data_size = len(self.data)
@@ -179,11 +176,3 @@ class DataProvider:
                 yield self.create_x_y(self.data[index_list[i]:index_list[i+1]])
             else:
                 yield self.create_x_y(self.data[index_list[i]:])
-
-
-# data_provider = DataProvider('validate.pickle', 'labels')
-# tmp = []
-# for data in data_provider.get_data_batch(1):
-#     print(len(data[0][0]))
-#     tmp.extend(data)
-#     print(len(tmp[0]), len(data_provider.data))
