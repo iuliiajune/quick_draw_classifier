@@ -135,23 +135,12 @@ def load_dataset(path):
 
 class DataProvider:
 
-    def __init__(self, data_path, label_path, num_classes, max_data_len):
+    def __init__(self, data_path, class_dict, max_data_len):
         self.data = load_dataset(data_path)
-        self.class_dict = self.read_labels(label_path)
+        self.class_dict = class_dict
         self.data_size = len(self.data)
         self.max_data_len = max_data_len
-        self.num_classes = num_classes
-
-    @staticmethod
-    def read_labels(label_path):
-        dict = {}
-        with open(label_path, 'r') as f:
-            class_number = -1
-            for item in f.readlines():
-                class_name = item.strip()
-                class_number += 1
-                dict[class_name] = class_number
-        return dict
+        self.num_classes = len(class_dict.keys())
 
     def label_vectoring(self, label_text):
         vectorized_label = np.zeros(len(self.class_dict.keys()), dtype=np.int32)
