@@ -8,16 +8,20 @@ if __name__ == "__main__":
         default=0.1,
         type=float)
     parser.add_argument(
+        "--use_gpu",
+        default=True,
+        type=bool)
+    parser.add_argument(
         "--batch_size",
         default=200,
         type=int)
     parser.add_argument(
         "--epochs",
-        default=10,
+        default=100,
         type=int)
     parser.add_argument(
         "--sizes",
-        default=(286*200*3, 572, 10),
+        default=[524*3, 572*2, 572],
         type=list)
     parser.add_argument(
         "--train_data_path",
@@ -37,7 +41,7 @@ if __name__ == "__main__":
         type=str)
     parser.add_argument(
         "--max_data_len",
-        default=286,
+        default=524,
         type=int)
     parser.add_argument(
         "--save_path",
@@ -47,7 +51,8 @@ if __name__ == "__main__":
     nn = Network(shapes=args.sizes,
                  label_path=args.labels_path,
                  pretrained_path=args.pretrained_path,
-                 max_data_len=args.max_data_len)
+                 max_data_len=args.max_data_len,
+                 use_gpu=args.use_gpu)
     nn.train(train_data_path=args.train_data_path,
              validate_data_path=args.validate_data_path,
              save_path=args.save_path,

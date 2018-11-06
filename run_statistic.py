@@ -5,7 +5,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--sizes",
-        default=(286*200*3, 572, 10),
+        default=[524*100*3, 572],
         type=list)
     parser.add_argument(
         "--labels_path",
@@ -17,7 +17,7 @@ if __name__ == "__main__":
         type=str)
     parser.add_argument(
         "--max_data_len",
-        default=286,
+        default=524,
         type=int)
     parser.add_argument(
         "--test_data_path",
@@ -27,11 +27,16 @@ if __name__ == "__main__":
         "--output_path",
         default='./',
         type=str)
+    parser.add_argument(
+        "--use_gpu",
+        default=True,
+        type=bool)
     args = parser.parse_args()
 
     nn = Network(shapes=args.sizes,
                  label_path=args.labels_path,
                  pretrained_path=args.pretrained_path,
-                 max_data_len=args.max_data_len)
+                 max_data_len=args.max_data_len,
+                 use_gpu=args.use_gpu)
     statisctic_report = nn.get_statistics(args.test_data_path)
     print(statisctic_report)
