@@ -9,11 +9,11 @@ if __name__ == "__main__":
         type=str)
     parser.add_argument(
         "--max_items_per_class",
-        default=10000,
+        default=1000,
         type=int)
     parser.add_argument(
         "--num_classes",
-        default=10,
+        default=345,
         type=int)
     parser.add_argument(
         "--output_path",

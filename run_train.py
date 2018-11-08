@@ -9,7 +9,7 @@ if __name__ == "__main__":
         type=float)
     parser.add_argument(
         "--use_gpu",
-        default=True,
+        default=False,
         type=bool)
     parser.add_argument(
         "--batch_size",
@@ -21,15 +21,15 @@ if __name__ == "__main__":
         type=int)
     parser.add_argument(
         "--sizes",
-        default=[524*3, 572*2, 572],
+        default=[345*3*10, 345*3, 572],
         type=list)
     parser.add_argument(
         "--train_data_path",
-        default='validate.pickle',
+        default='./validate',
         type=str)
     parser.add_argument(
         "--validate_data_path",
-        default='validate.pickle',
+        default='./validate',
         type=str)
     parser.add_argument(
         "--labels_path",
@@ -41,18 +41,23 @@ if __name__ == "__main__":
         type=str)
     parser.add_argument(
         "--max_data_len",
-        default=524,
+        default=834,
         type=int)
     parser.add_argument(
         "--save_path",
         default='checkpoints',
+        type=str)
+    parser.add_argument(
+        "--log_dir",
+        default='./log_dir',
         type=str)
     args = parser.parse_args()
     nn = Network(shapes=args.sizes,
                  label_path=args.labels_path,
                  pretrained_path=args.pretrained_path,
                  max_data_len=args.max_data_len,
-                 use_gpu=args.use_gpu)
+                 use_gpu=args.use_gpu,
+                 log_dir=args.log_dir)
     nn.train(train_data_path=args.train_data_path,
              validate_data_path=args.validate_data_path,
              save_path=args.save_path,
