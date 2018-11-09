@@ -178,18 +178,18 @@ class DataProvider:
                 x[index] = numpy.concatenate((x_data, numpy.zeros((self.max_data_len - x_data.shape[0], 3))))
                 y[index] = self.label_vectoring(data[index].y)
         else:
-            x = numpy.zeros((len(data), self.img_size, self.img_size), dtype=np.int32)
+            x = numpy.zeros((len(data), self.img_size, self.img_size, 1), dtype=np.int32)
             y = numpy.zeros((len(data), self.num_classes), dtype=np.int32)
             for index in range(len(data)):
                 x_data = data[index].x
-                x_img = np.ones((self.img_size, self.img_size),dtype=np.int32)
+                x_img = np.ones((self.img_size, self.img_size, 1), dtype=np.int32)
                 for dot_index in range(x_data.shape[0]):
                     dot = x_data[dot_index]
                     if dot_index > 0 and x_data[dot_index-1][2] == 0:
                         previous_dot = x_data[dot_index-1]
                         cv2.line(x_img,
                                  (int(previous_dot[0]*self.img_size), int(previous_dot[1]*self.img_size)),
-                                 (int(dot[0]*self.img_size),         int(dot[1]*self.img_size)),
+                                 (int(dot[0]*self.img_size),          int(dot[1]*self.img_size)),
                                  (0, 0, 0))
                 x[index] = x_img
                 y[index] = self.label_vectoring(data[index].y)

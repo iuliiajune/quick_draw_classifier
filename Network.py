@@ -16,7 +16,7 @@ class Network:
 
     def _get_input_tensors_conv(self):
         with tf.variable_scope('input_x'):
-            input_x = tf.placeholder(tf.float32, [None, self.img_size, self.img_size])
+            input_x = tf.placeholder(tf.float32, [None, self.img_size, self.img_size, 1])
         with tf.variable_scope('input_y'):
             input_y = tf.placeholder(tf.int32, [None, self.num_classes])
         return input_x, input_y
@@ -67,11 +67,38 @@ class Network:
     def create_cnn_nn(self):
         for d in ['/cpu:0'] if not self.use_gpu else ["/device:GPU:0"]:
             with tf.device(d):
-                logits
-
-                
-                self.logits = self._add_fc_layers(logits, self.shapes[-1],
-                                                 'hidden_fc_{}'.format(-1))
+                self.inks, self.targets = self._get_input_tensors_conv()
+                conv1 = tf.layers.conv2d(
+                    inputs=self.inks,
+                    filters=32,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    data_format='channels_last',
+                    activation=tf.nn.relu)
+                pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
+                conv2 = tf.layers.conv2d(
+                    inputs=pool1,
+                    filters=64,
+                    kernel_size=[5, 5],
+                    padding="same",
+                    activation=tf.nn.relu)
+                pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+                conv3 = tf.layers.conv2d(
+                    inputs=pool2,
+                    filters=64,
+                    kernel_size=[5, 5],
+                    padding="same",
+                    activation=tf.nn.relu)
+                pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], strides=2)
+                conv4 = tf.layers.conv2d(
+                    inputs=pool3,
+                    filters=64,
+                    kernel_size=[5, 5],
+                    padding="same",
+                    activation=tf.nn.relu)
+                pool4 = tf.layers.max_pooling2d(inputs=conv4, pool_size=[2, 2], strides=2)
+                flatten = tf.layers.flatten(pool4, name='flatten_data')
+                self.logits = self._add_fc_layers(flatten, self.num_classes, 'hidden_fc')
 
     def train(self, train_data_path, validate_data_path, save_path=None, batch_size=200, learning_rate=0.1,
               epochs=100):
@@ -135,7 +162,7 @@ class Network:
                 res = sess.run(accuracy, feed_dict={self.inks: valid_x, self.targets: valid_y})
                 result.append(res)
                 print(res)
-            # print(numpy.mean(result))
+            print(numpy.mean(result))
 
     def inference(self, test_data_provider):
         saver = tf.train.Saver()

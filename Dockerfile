@@ -1,4 +1,4 @@
-FROM nvidia/cuda:8.0-cudnn7-devel-ubuntu16.04
+FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
 MAINTAINER UNN CG_3
 
@@ -13,7 +13,7 @@ RUN apt-get update
 RUN apt-get install -y python3.6
 RUN apt install -y git pkg-config
 RUN apt install -y wget python3-pip python3.6-dev net-tools libtool ccache unzip unrar tar xz-utils bzip2 gzip coreutils ntp
-RUN apt-get install -y vim htop nano mc cmake
+RUN apt-get install -y vim htop nano mc cmake libfontconfig1 libxrender1 libsm6 libxext6
 RUN apt-get clean -y
 RUN pip3 install tensorflow-gpu
 USER root
