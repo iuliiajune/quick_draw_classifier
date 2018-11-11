@@ -23,7 +23,20 @@ class Network:
 
     def _add_fc_layers(self, inks, size, name):
         with tf.variable_scope(name):
-            return tf.contrib.layers.fully_connected(inks, size)
+            # layer = tf.contrib.layers.fully_connected(inks, size, reuse=tf.AUTO_REUSE)
+            layer = tf.layers.dense(inks, size,activation=tf.nn.relu6, reuse=tf.AUTO_REUSE)
+        return layer
+
+    def _add_conv_block(self, input, filter_count, kernel_size, pool_size, pool_strides):
+        conv = tf.layers.conv2d(
+            inputs=input,
+            filters=filter_count,
+            kernel_size=[kernel_size, kernel_size],
+            padding="same",
+            activation=tf.nn.relu6)
+        pool = tf.layers.max_pooling2d(inputs=conv, pool_size=[pool_size, pool_size], strides=pool_strides)
+        return pool
+
 
     @staticmethod
     def read_labels(label_path):
@@ -36,7 +49,7 @@ class Network:
                 dict[class_name] = class_number
         return dict
 
-    def __init__(self, shapes, label_path, use_gpu, log_dir, pretrained_path, max_data_len, is_conv_nn=True):
+    def __init__(self, shapes, label_path, use_gpu, log_dir, pretrained_path, max_data_len, img_size, is_conv_nn=True):
         self.max_data_len = max_data_len
         self.pretrained_path = pretrained_path
         self.class_dict = self.read_labels(label_path)
@@ -46,7 +59,9 @@ class Network:
         self.summaries_dir = log_dir
         self.use_gpu = use_gpu
         self.is_conv_nn = is_conv_nn
-        self.img_size=100
+        self.img_size = img_size
+        self.keep_prob1 = tf.placeholder(tf.float32)
+        self.keep_prob2= tf.placeholder(tf.float32)
 
         if not self.is_conv_nn:
             self.create_fc_nn()
@@ -65,40 +80,32 @@ class Network:
                 self.logits = logits
 
     def create_cnn_nn(self):
-        for d in ['/cpu:0'] if not self.use_gpu else ["/device:GPU:0"]:
+        for d in ['/cpu:0'] if not self.use_gpu else ["/device:GPU:0", "/device:GPU:1"]:
             with tf.device(d):
                 self.inks, self.targets = self._get_input_tensors_conv()
-                conv1 = tf.layers.conv2d(
-                    inputs=self.inks,
+                params = (
+                    (64, 3, 2, 2),
+                    (64, 3, 2, 2),
+                )
+                conv = self.inks
+                conv = tf.layers.conv2d(
+                    inputs=conv,
                     filters=32,
                     kernel_size=[3, 3],
                     padding="same",
-                    data_format='channels_last',
-                    activation=tf.nn.relu)
-                pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
-                conv2 = tf.layers.conv2d(
-                    inputs=pool1,
+                    activation=tf.nn.relu6)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
                     filters=64,
-                    kernel_size=[5, 5],
+                    kernel_size=[3, 3],
                     padding="same",
-                    activation=tf.nn.relu)
-                pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-                conv3 = tf.layers.conv2d(
-                    inputs=pool2,
-                    filters=64,
-                    kernel_size=[5, 5],
-                    padding="same",
-                    activation=tf.nn.relu)
-                pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], strides=2)
-                conv4 = tf.layers.conv2d(
-                    inputs=pool3,
-                    filters=64,
-                    kernel_size=[5, 5],
-                    padding="same",
-                    activation=tf.nn.relu)
-                pool4 = tf.layers.max_pooling2d(inputs=conv4, pool_size=[2, 2], strides=2)
-                flatten = tf.layers.flatten(pool4, name='flatten_data')
-                self.logits = self._add_fc_layers(flatten, self.num_classes, 'hidden_fc')
+                    activation=tf.nn.relu6)
+                for (filter_count, kernel_size, pool_size, pool_strides) in params:
+                    conv = self._add_conv_block(conv, filter_count, kernel_size, pool_size, pool_strides)
+                do_1 = tf.nn.dropout(conv, self.keep_prob1)
+                flatten = tf.layers.flatten(do_1, name='flatten_data')
+                do_2 = tf.nn.dropout(flatten, self.keep_prob2)
+                self.logits = self._add_fc_layers(do_2, self.num_classes, 'hidden_fc')
 
     def train(self, train_data_path, validate_data_path, save_path=None, batch_size=200, learning_rate=0.1,
               epochs=100):
@@ -114,7 +121,7 @@ class Network:
         saver = tf.train.Saver()
 
         # load dataset
-        train_dp = pd.DataProvider(train_data_path, self.class_dict, self.is_conv_nn, self.max_data_len)
+        train_dp = pd.DataProvider(train_data_path, self.class_dict, self.is_conv_nn, self.max_data_len, self.img_size)
         # start the session
         with tf.Session() as sess:
 
@@ -135,7 +142,7 @@ class Network:
                          options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
             else:
                 saver.restore(sess, self.pretrained_path)
-            print_step = 20
+            print_step = 50
             for epoch in range(epochs):
                 avg_cost = 0
                 prev_arg_cost = None
@@ -143,7 +150,9 @@ class Network:
                 for batch_x, batch_y in tqdm.tqdm(train_dp.get_data_batch(batch_size)):
                     step += 1
                     _, c, summary = sess.run([optimiser, cross_entropy, merged], feed_dict={self.inks: batch_x,
-                                                                                            self.targets: batch_y},
+                                                                                            self.targets: batch_y,
+                                                                                            self.keep_prob1: 0.25,
+                                                                                            self.keep_prob2: 0.5},
                                              options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
                     avg_cost += c
                     train_writer.add_summary(summary, step)
@@ -151,12 +160,14 @@ class Network:
                         diff = avg_cost-prev_arg_cost if prev_arg_cost is not None else avg_cost
                         prev_arg_cost = avg_cost
                         print(diff/print_step)
+                        tf.summary.scalar('mean', diff/print_step)
                 print("Epoch:", (epoch + 1), "train cost =", "{:.10f}".format(avg_cost/step))
                 if save_path is not None:
                     result_path = saver.save(sess, os.path.join(save_path, "pass_{}.ckpt".format(epoch)))
                     print('Checkpoint saved to ', result_path)
 
-            validate_dp = pd.DataProvider(validate_data_path, self.class_dict, self.is_conv_nn, self.max_data_len)
+            validate_dp = pd.DataProvider(validate_data_path, self.class_dict, self.is_conv_nn, self.max_data_len,
+                                          self.img_size)
             result = []
             for valid_x, valid_y in tqdm.tqdm(validate_dp.get_data_batch()):
                 res = sess.run(accuracy, feed_dict={self.inks: valid_x, self.targets: valid_y})

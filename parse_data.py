@@ -154,13 +154,13 @@ def load_dataset(path):
 
 class DataProvider:
 
-    def __init__(self, data_path, class_dict, is_conv_nn, max_data_len=None):
+    def __init__(self, data_path, class_dict, is_conv_nn, max_data_len=None, img_size=100):
         self.data_path = data_path
         self.class_dict = class_dict
         self.max_data_len = max_data_len
         self.is_conv_nn = is_conv_nn
         self.num_classes = len(class_dict.keys())
-        self.img_size=100
+        self.img_size = img_size
 
     def label_vectoring(self, label_text):
         vectorized_label = np.zeros(len(self.class_dict.keys()), dtype=np.int32)
