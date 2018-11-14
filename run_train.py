@@ -5,7 +5,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--learning_rate",
-        default=0.1,
+        default=0.001,
         type=float)
     parser.add_argument(
         "--use_gpu",
@@ -13,7 +13,7 @@ if __name__ == "__main__":
         type=bool)
     parser.add_argument(
         "--batch_size",
-        default=250,
+        default=128,
         type=int)
     parser.add_argument(
         "--epochs",
@@ -21,19 +21,20 @@ if __name__ == "__main__":
         type=int)
     parser.add_argument(
         "--sizes",
-        default=[345*3*10, 345*3, 572],
+        default=[345*4*10, 345*3*10, 345*3*10, 345*2*10,
+                 345*3*2,  345*3*2,  345*3,    345*3,   345*2],
         type=list)
     parser.add_argument(
         "--train_data_path",
-        default='./validate',
+        default='./100_classes/train',
         type=str)
     parser.add_argument(
         "--validate_data_path",
-        default='./validate',
+        default='./100_classes/validate',
         type=str)
     parser.add_argument(
         "--labels_path",
-        default='labels',
+        default='./100_classes/labels',
         type=str)
     parser.add_argument(
         "--pretrained_path",
@@ -49,12 +50,16 @@ if __name__ == "__main__":
         type=str)
     parser.add_argument(
         "--log_dir",
-        default='/mount/export0/log_dir/',
+        default='/mount/export0/log_dir/3',
         type=str)
     parser.add_argument(
         "--img_size",
-        default=100,
+        default=128,
         type=int)
+    parser.add_argument(
+        "--is_conv",
+        default=True,
+        type=bool)
     args = parser.parse_args()
     nn = Network(shapes=args.sizes,
                  label_path=args.labels_path,
@@ -62,7 +67,8 @@ if __name__ == "__main__":
                  max_data_len=args.max_data_len,
                  use_gpu=args.use_gpu,
                  log_dir=args.log_dir,
-                 img_size=args.img_size)
+                 img_size=args.img_size,
+                 is_conv_nn=args.is_conv)
     nn.train(train_data_path=args.train_data_path,
              validate_data_path=args.validate_data_path,
              save_path=args.save_path,

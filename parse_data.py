@@ -197,6 +197,8 @@ class DataProvider:
 
     def get_data_batch(self, batch_size=None):
         for data in self.read_data_folder():
+            np.random.shuffle(data)
+            np.random.shuffle(data)
             index_list = list(range(0, len(data), batch_size if batch_size is not None else len(data)))
             for i in range(len(index_list)):
                 if i < len(index_list)-1:

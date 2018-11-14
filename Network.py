@@ -1,6 +1,8 @@
 import os
 import numpy
 import tensorflow as tf
+from tensorflow.python.ops import init_ops
+
 import parse_data as pd
 import tqdm
 from sklearn.metrics import classification_report
@@ -24,7 +26,8 @@ class Network:
     def _add_fc_layers(self, inks, size, name):
         with tf.variable_scope(name):
             # layer = tf.contrib.layers.fully_connected(inks, size, reuse=tf.AUTO_REUSE)
-            layer = tf.layers.dense(inks, size,activation=tf.nn.relu6, reuse=tf.AUTO_REUSE)
+            layer = tf.layers.dense(inks, size,activation=tf.nn.relu6, reuse=tf.AUTO_REUSE,
+                                    bias_initializer=init_ops.random_uniform_initializer())
         return layer
 
     def _add_conv_block(self, input, filter_count, kernel_size, pool_size, pool_strides):
@@ -50,6 +53,7 @@ class Network:
         return dict
 
     def __init__(self, shapes, label_path, use_gpu, log_dir, pretrained_path, max_data_len, img_size, is_conv_nn=True):
+        tf.reset_default_graph()
         self.max_data_len = max_data_len
         self.pretrained_path = pretrained_path
         self.class_dict = self.read_labels(label_path)
@@ -61,7 +65,7 @@ class Network:
         self.is_conv_nn = is_conv_nn
         self.img_size = img_size
         self.keep_prob1 = tf.placeholder(tf.float32)
-        self.keep_prob2= tf.placeholder(tf.float32)
+        self.keep_prob2 = tf.placeholder(tf.float32)
 
         if not self.is_conv_nn:
             self.create_fc_nn()
@@ -71,52 +75,224 @@ class Network:
     def create_fc_nn(self):
         for d in ['/cpu:0'] if not self.use_gpu else ["/device:GPU:0"]:
             with tf.device(d):
-                self.inks, self.targets = self._get_input_tensors_fc()
+                # self.inks, self.targets = self._get_input_tensors_fc()
+                self.inks, self.targets = self._get_input_tensors_conv()
                 flatten = tf.layers.flatten(self.inks, name='flatten_data')
-                logits = self._add_fc_layers(flatten, self.shapes[0], 'hidden_fc_0')
-                for shape_index in range(1, len(self.shapes)):
-                    logits = self._add_fc_layers(logits, self.shapes[shape_index],
-                                                 'hidden_fc_{}'.format(shape_index))
+                logits = flatten
+                for shape_index in range(len(self.shapes)):
+                    logits = self._add_fc_layers(logits, self.shapes[shape_index], 'hidden_fc_{}'.format(shape_index))
+                    logits = tf.nn.dropout(logits, self.keep_prob1)
                 self.logits = logits
 
     def create_cnn_nn(self):
-        for d in ['/cpu:0'] if not self.use_gpu else ["/device:GPU:0", "/device:GPU:1"]:
+        for d in ['/cpu:0'] if not self.use_gpu else ["/device:GPU:0",]:# "/device:GPU:1"]:
             with tf.device(d):
                 self.inks, self.targets = self._get_input_tensors_conv()
                 params = (
-                    (64, 3, 2, 2),
-                    (64, 3, 2, 2),
+                    (64, 5, 4, 4),
+                    (64, 5, 4, 4),
+                    (32, 3, 2, 2),
+                    # (128, 3, 2, 2),
                 )
                 conv = self.inks
+
+                conv = tf.layers.batch_normalization(conv)
                 conv = tf.layers.conv2d(
                     inputs=conv,
-                    filters=32,
+                    filters=16,
                     kernel_size=[3, 3],
                     padding="same",
-                    activation=tf.nn.relu6)
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=16,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
+                conv = tf.nn.dropout(conv, self.keep_prob1)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=24,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=24,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
+                conv = tf.nn.dropout(conv, self.keep_prob1)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=48,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=48,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
+                conv = tf.nn.dropout(conv, self.keep_prob1)
+
+                conv = tf.layers.batch_normalization(conv)
                 conv = tf.layers.conv2d(
                     inputs=conv,
                     filters=64,
                     kernel_size=[3, 3],
                     padding="same",
-                    activation=tf.nn.relu6)
-                for (filter_count, kernel_size, pool_size, pool_strides) in params:
-                    conv = self._add_conv_block(conv, filter_count, kernel_size, pool_size, pool_strides)
-                do_1 = tf.nn.dropout(conv, self.keep_prob1)
-                flatten = tf.layers.flatten(do_1, name='flatten_data')
-                do_2 = tf.nn.dropout(flatten, self.keep_prob2)
-                self.logits = self._add_fc_layers(do_2, self.num_classes, 'hidden_fc')
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=64,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
+                conv = tf.nn.dropout(conv, self.keep_prob1)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=96,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=96,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
+                conv = tf.nn.dropout(conv, self.keep_prob1)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=128,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=128,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
+                conv = tf.nn.dropout(conv, self.keep_prob1)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=160,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=160,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.batch_normalization(conv)
+                conv = tf.layers.conv2d(
+                    inputs=conv,
+                    filters=160,
+                    kernel_size=[3, 3],
+                    padding="same",
+                    activation=None)
+                conv = tf.nn.relu6(conv)
+
+                conv = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
+                conv = tf.nn.dropout(conv, self.keep_prob1)
+
+                # conv = tf.layers.batch_normalization(conv)
+                # conv = tf.layers.conv2d(
+                #     inputs=conv,
+                #     filters=310,
+                #     kernel_size=[3, 3],
+                #     padding="same",
+                #     activation=None)
+                # conv = tf.nn.relu6(conv)
+                #
+                # conv = tf.layers.batch_normalization(conv)
+                # conv = tf.layers.conv2d(
+                #     inputs=conv,
+                #     filters=310,
+                #     kernel_size=[3, 3],
+                #     padding="same",
+                #     activation=None)
+                # conv = tf.nn.relu6(conv)
+
+                # conv = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
+                # # for (filter_count, kernel_size, pool_size, pool_strides) in params:
+                # #     conv = self._add_conv_block(conv, filter_count, kernel_size, pool_size, pool_strides)
+                # conv = tf.nn.dropout(conv, self.keep_prob1)
+                flatten = tf.layers.flatten(conv, name='flatten_data')
+                # do_2 = tf.nn.dropout(flatten, self.keep_prob2)
+                # flatten = self._add_fc_layers(flatten, self.num_classes*3, 'hidden_fc_0')
+                # flatten = self._add_fc_layers(flatten, self.num_classes*2, 'hidden_fc_1')
+                self.logits = self._add_fc_layers(flatten, self.num_classes, 'hidden_fc_2')
 
     def train(self, train_data_path, validate_data_path, save_path=None, batch_size=200, learning_rate=0.1,
               epochs=100):
         with tf.name_scope('total'):
             # The loss function
-            cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.targets,
-                                                                                      logits=self.logits))
+            cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.targets, logits=self.logits))
+            # cross_entropy = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+            #                                                         labels=tf.cast(self.targets, tf.float32),
+            #                                                         logits=self.logits))
         tf.summary.scalar('cross_entropy', cross_entropy)
         with tf.name_scope('train'):
             # add an optimiser
-            optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
+            # optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
+            optimiser = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
         # Add ops to save and restore all the variables.
         saver = tf.train.Saver()
 
@@ -142,7 +318,7 @@ class Network:
                          options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
             else:
                 saver.restore(sess, self.pretrained_path)
-            print_step = 50
+            print_step = 100
             for epoch in range(epochs):
                 avg_cost = 0
                 prev_arg_cost = None
@@ -151,8 +327,7 @@ class Network:
                     step += 1
                     _, c, summary = sess.run([optimiser, cross_entropy, merged], feed_dict={self.inks: batch_x,
                                                                                             self.targets: batch_y,
-                                                                                            self.keep_prob1: 0.25,
-                                                                                            self.keep_prob2: 0.5},
+                                                                                            self.keep_prob1: 0.85},
                                              options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
                     avg_cost += c
                     train_writer.add_summary(summary, step)
