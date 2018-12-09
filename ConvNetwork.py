@@ -7,6 +7,7 @@ class ConvNetwork(NetworkBase):
         for d in ['/cpu:0'] if not self.use_gpu else ["/device:GPU:0"]:
             with tf.device(d):
                 logits = self.inks
+
                 for index in range(len(sizes)):
                     params = sizes[index]
                     logits = self.add_conv_block(input=logits,

@@ -5,7 +5,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--learning_rate",
-        default=0.001,
+        default=0.002,
         type=float)
     parser.add_argument(
         "--use_gpu",
@@ -13,7 +13,7 @@ if __name__ == "__main__":
         type=bool)
     parser.add_argument(
         "--batch_size",
-        default=24,
+        default=16,
         type=int)
     parser.add_argument(
         "--epochs",
@@ -23,20 +23,19 @@ if __name__ == "__main__":
         "--sizes",
         default=[(16, 3, 2, 2),
                  (16, 3, 2, 2),
-                 (32, 3, 2, 2),
                  (32, 3, 2, 2)],
         type=list)
     parser.add_argument(
         "--train_data_path",
-        default='./5_classes/train',
+        default='20_classes/train',
         type=str)
     parser.add_argument(
         "--validate_data_path",
-        default='./5_classes/validate',
+        default='20_classes/validate',
         type=str)
     parser.add_argument(
         "--labels_path",
-        default='./5_classes/labels',
+        default='20_classes/labels',
         type=str)
     parser.add_argument(
         "--pretrained_path",
@@ -44,11 +43,11 @@ if __name__ == "__main__":
         type=str)
     parser.add_argument(
         "--save_path",
-        default='5_classes/checkpoints_conv_2',
+        default='20_classes/checkpoints_conv',
         type=str)
     parser.add_argument(
         "--log_dir",
-        default='5_classes/log_dir_conv_2',
+        default='20_classes/log_dir_conv',
         type=str)
     parser.add_argument(
         "--img_size",

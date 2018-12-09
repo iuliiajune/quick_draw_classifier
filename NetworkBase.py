@@ -1,13 +1,12 @@
 import os
 import time
-
+import tqdm
 import numpy
 import tensorflow as tf
+from sklearn.metrics import classification_report
 from tensorflow.python.ops import init_ops
 
 import parse_data as pd
-import tqdm
-from sklearn.metrics import classification_report
 
 
 class NetworkBase:
@@ -41,18 +40,19 @@ class NetworkBase:
 
     @staticmethod
     def add_conv_block(input, filter_count, kernel_size, pool_size, pool_strides):
-        input = tf.layers.conv2d(
-            inputs=input,
-            filters=filter_count,
-            kernel_size=[kernel_size, kernel_size],
-            padding="same",
-            activation=tf.nn.relu6)
         conv = tf.layers.conv2d(
             inputs=input,
             filters=filter_count,
             kernel_size=[kernel_size, kernel_size],
             padding="same",
             activation=tf.nn.relu6)
+        conv = tf.layers.conv2d(
+            inputs=conv,
+            filters=filter_count,
+            kernel_size=[kernel_size, kernel_size],
+            padding="same",
+            activation=tf.nn.relu6)
+        conv = tf.layers.batch_normalization(conv)
         pool = tf.layers.max_pooling2d(inputs=conv, pool_size=[pool_size, pool_size], strides=pool_strides)
         return pool
 
@@ -68,7 +68,7 @@ class NetworkBase:
         return dict
 
     def train(self, train_data_path, validate_data_path, save_path=None, batch_size=200, learning_rate=0.1, epochs=100,
-              print_step=100):
+              print_step=100, validation_step=3):
         with tf.name_scope('total'):
             # The loss function
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.targets,
@@ -110,7 +110,7 @@ class NetworkBase:
             else:
                 saver.restore(sess, self.pretrained_path)
 
-            for epoch in range(epochs):
+            for epoch in range(1, epochs):
                 avg_cost = 0
                 prev_arg_cost = None
                 step = 0
@@ -127,17 +127,18 @@ class NetworkBase:
                         prev_arg_cost = avg_cost
                         print(diff/print_step)
                         tf.summary.scalar('mean', diff/print_step)
-                print("\nEpoch:", (epoch + 1), "train cost = {:.10f}".format(avg_cost/step))
+                print("\nEpoch:", (epoch), "train cost = {:.10f}".format(avg_cost/step))
                 if save_path is not None:
                     result_path = saver.save(sess, os.path.join(save_path, "pass_{}.ckpt".format(epoch)))
                     print('Checkpoint saved to', result_path)
-
-                result = []
-                for valid_x, valid_y in validate_dp.get_data_batch():
-                    validate_accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.targets, 1), tf.argmax(self.logits, 1)), tf.float16))
-                    res = sess.run(validate_accuracy, feed_dict={self.inks: valid_x, self.targets: valid_y})
-                    result.append(res)
-                print('\nValidation', numpy.mean(result))
+                if epoch % validation_step == 0:
+                    result = []
+                    for valid_x, valid_y in tqdm.tqdm(validate_dp.get_data_batch(batch_size)):
+                        validate_accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.targets, 1),
+                                                                            tf.argmax(self.logits, 1)), tf.float16))
+                        res = sess.run(validate_accuracy, feed_dict={self.inks: valid_x, self.targets: valid_y})
+                        result.append(res)
+                    print('\nValidation', numpy.mean(result))
                 print('Epoch time {} s'.format(time.time()-start_time))
 
     def inference(self, test_data_provider):
@@ -145,10 +146,6 @@ class NetworkBase:
         with tf.Session() as sess:
             # Restore variables from disk.
             saver.restore(sess, self.pretrained_path)
-
-            # inks = tf.get_default_graph().get_tensor_by_name("input_x:0")
-            # targets = tf.get_default_graph().get_tensor_by_name("input_y:0")
-            # logits = tf.get_default_graph().get_tensor_by_name("hidden_fc_last:0")
             result = []
             target = []
             for valid_x, valid_y in tqdm.tqdm(test_data_provider.get_data_batch(1)):
