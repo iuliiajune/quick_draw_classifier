@@ -8,6 +8,8 @@ import matplotlib.patches as patches
 import pickle
 import pathlib
 import cv2
+import random
+
 
 class Item(object):
     __slots__ = ['x', 'y', 'id', 'cn']
@@ -67,8 +69,8 @@ def create_dataset(data_path, save_path='./', train_part=0.7, test_part=0.2, val
         labels.append(class_name)
         for drawing in unpack_drawings(os.path.join(data_path, binary_file)):
             total_samples += 1
-            recognize_counter += drawing['recognized']
             if drawing['recognized']:
+                recognize_counter += 1
                 inkarray = drawing['image']
                 stroke_lengths = [len(stroke[0]) for stroke in inkarray]
                 total_points = sum(stroke_lengths)
@@ -138,6 +140,7 @@ def create_dataset(data_path, save_path='./', train_part=0.7, test_part=0.2, val
 
 
 def pack_data(train_data,  name, save_path, pocket_size):
+    pathlib.Path(save_path).mkdir(exist_ok=True)
     pathlib.Path(os.path.join(save_path, name)).mkdir(exist_ok=True)
     for i in range(0, len(train_data), pocket_size):
         with open(os.path.join(save_path, name, '{}_{}.pickle'.format(name, i)), 'wb') as handle:
@@ -154,51 +157,39 @@ def load_dataset(path):
 
 class DataProvider:
 
-    def __init__(self, data_path, class_dict, is_conv_nn, max_data_len=None, img_size=100):
+    def __init__(self, data_path, class_dict, img_size):
         self.data_path = data_path
         self.class_dict = class_dict
-        self.max_data_len = max_data_len
-        self.is_conv_nn = is_conv_nn
         self.num_classes = len(class_dict.keys())
         self.img_size = img_size
 
     def label_vectoring(self, label_text):
-        vectorized_label = np.zeros(len(self.class_dict.keys()), dtype=np.int32)
+        vectorized_label = np.zeros(len(self.class_dict.keys()), dtype=np.float16)
         vectorized_label[self.class_dict[label_text.strip()]] = 1
         return vectorized_label
 
     def create_x_y(self, data):
-        if not self.is_conv_nn:
-            x = numpy.zeros((len(data), self.max_data_len, 3), dtype=np.float32)
-            y = numpy.zeros((len(data), self.num_classes), dtype=np.int32)
-            for index in range(len(data)):
-                x_data = data[index].x
-                if x_data.shape[1] is 2:
-                    x_data = numpy.concatenate((x_data, numpy.zeros((x_data.shape[0], 1))), axis=1)
-                x[index] = numpy.concatenate((x_data, numpy.zeros((self.max_data_len - x_data.shape[0], 3))))
-                y[index] = self.label_vectoring(data[index].y)
-        else:
-            x = numpy.zeros((len(data), self.img_size, self.img_size, 1), dtype=np.int32)
-            y = numpy.zeros((len(data), self.num_classes), dtype=np.int32)
-            for index in range(len(data)):
-                x_data = data[index].x
-                x_img = np.ones((self.img_size, self.img_size, 1), dtype=np.int32)
-                for dot_index in range(x_data.shape[0]):
-                    dot = x_data[dot_index]
-                    if dot_index > 0 and x_data[dot_index-1][2] == 0:
-                        previous_dot = x_data[dot_index-1]
-                        cv2.line(x_img,
-                                 (int(previous_dot[0]*self.img_size), int(previous_dot[1]*self.img_size)),
-                                 (int(dot[0]*self.img_size),          int(dot[1]*self.img_size)),
-                                 (0, 0, 0))
-                x[index] = x_img
-                y[index] = self.label_vectoring(data[index].y)
+        x = numpy.zeros((len(data), self.img_size, self.img_size, 1), dtype=np.float32)
+        y = numpy.zeros((len(data), self.num_classes), dtype=np.float16)
+        for index in range(len(data)):
+            x_data = data[index].x
+            x_img = np.ones((self.img_size, self.img_size, 1), dtype=np.float32)
+            for dot_index in range(x_data.shape[0]):
+                dot = x_data[dot_index]
+                if dot_index > 0 and x_data[dot_index-1][2] == 0:
+                    previous_dot = x_data[dot_index-1]
+                    cv2.line(x_img,
+                             (int(previous_dot[0]*self.img_size), int(previous_dot[1]*self.img_size)),
+                             (int(dot[0]*self.img_size),          int(dot[1]*self.img_size)),
+                             (0, 0, 0))
+            x[index] = x_img
+            y[index] = self.label_vectoring(data[index].y)
         return numpy.array(x), numpy.array(y)
 
     def get_data_batch(self, batch_size=None):
         for data in self.read_data_folder():
-            np.random.shuffle(data)
-            np.random.shuffle(data)
+            # np.random.shuffle(data)
+            data = random.sample(data, len(data))
             index_list = list(range(0, len(data), batch_size if batch_size is not None else len(data)))
             for i in range(len(index_list)):
                 if i < len(index_list)-1:
@@ -207,5 +198,6 @@ class DataProvider:
                     yield self.create_x_y(data[index_list[i]:])
 
     def read_data_folder(self):
-        for item in os.listdir(self.data_path):
+        data_list = os.listdir(self.data_path)
+        for item in random.sample(data_list, len(data_list)):
             yield load_dataset(os.path.join(self.data_path,item))

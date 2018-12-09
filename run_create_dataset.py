@@ -9,15 +9,15 @@ if __name__ == "__main__":
         type=str)
     parser.add_argument(
         "--max_items_per_class",
-        default=1000,
+        default=5000,
         type=int)
     parser.add_argument(
         "--num_classes",
-        default=345,
+        default=20,
         type=int)
     parser.add_argument(
         "--output_path",
-        default='./',
+        default='./20_classes',
         type=str)
     parser.add_argument(
         "--dataset_proportion",
