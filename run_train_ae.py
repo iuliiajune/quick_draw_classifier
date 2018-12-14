@@ -1,5 +1,5 @@
 import argparse
-from FCNetwork import FCNetwork
+from autoencoder import AutoencoderNetwork
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -17,51 +17,50 @@ if __name__ == "__main__":
         type=int)
     parser.add_argument(
         "--epochs",
-        default=100,
+        default=1,
         type=int)
     parser.add_argument(
         "--sizes",
-        default=[
-                 # 3*28*28,
-                 # 2*28*28,
-                 14*28
-                ],
+        default=[(16, 3, 2, 2),
+                 # (16, 3, 2, 2),
+                 (32, 3, 2, 2)
+                 ],
         type=list)
     parser.add_argument(
         "--train_data_path",
-        default='./5_classes/train',
+        default='5_classes/train',
         type=str)
     parser.add_argument(
         "--validate_data_path",
-        default='./5_classes/validate',
+        default='5_classes/validate',
         type=str)
     parser.add_argument(
         "--labels_path",
-        default='./5_classes/labels',
+        default='5_classes/labels',
         type=str)
     parser.add_argument(
         "--pretrained_path",
-        default='5_classes/checkpoints_fc_3/pass_20.ckpt',
+        default=None,
         type=str)
     parser.add_argument(
         "--save_path",
-        default='5_classes/checkpoints_fc_3',
+        default='5_classes/ae',
         type=str)
     parser.add_argument(
         "--log_dir",
-        default='5_classes/log_dir_fc_3',
+        default='5_classes/ae/log_dir',
         type=str)
     parser.add_argument(
         "--img_size",
-        default=28,
+        default=32,
         type=int)
     args = parser.parse_args()
-    nn = FCNetwork(label_path=args.labels_path,
+    nn = AutoencoderNetwork(label_path=args.labels_path,
                    pretrained_path=args.pretrained_path,
                    use_gpu=args.use_gpu,
                    log_dir=args.log_dir,
-                   img_size=args.img_size)
-    nn.create(args.sizes)
+                   img_size=args.img_size,
+                   sizes=args.sizes)
     nn.train(train_data_path=args.train_data_path,
              validate_data_path=args.validate_data_path,
              save_path=args.save_path,

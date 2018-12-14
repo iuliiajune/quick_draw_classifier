@@ -168,6 +168,14 @@ class DataProvider:
         vectorized_label[self.class_dict[label_text.strip()]] = 1
         return vectorized_label
 
+    def get_class_name(self, input_array):
+        res = []
+        for input_vector in input_array:
+            names = self.class_dict.keys()
+            max_index = input_vector.argmax(axis=0)
+            res.append(names[max_index])
+        return res
+
     def create_x_y(self, data):
         x = numpy.zeros((len(data), self.img_size, self.img_size, 1), dtype=np.float32)
         y = numpy.zeros((len(data), self.num_classes), dtype=np.float16)
@@ -201,3 +209,8 @@ class DataProvider:
         data_list = os.listdir(self.data_path)
         for item in random.sample(data_list, len(data_list)):
             yield load_dataset(os.path.join(self.data_path,item))
+
+    def add_noise(self, input_batch, noise_factor):
+        noisy_imgs = input_batch + noise_factor * np.random.randn(*input_batch.shape)
+        noise_batch = np.clip(noisy_imgs, 0., 1.)
+        return noise_batch

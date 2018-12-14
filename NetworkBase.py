@@ -35,7 +35,8 @@ class NetworkBase:
     @staticmethod
     def add_fc_layers(input, size, name):
         with tf.variable_scope(name):
-            layer = tf.layers.dense(inputs=input, units=size, activation=tf.nn.relu6, bias_initializer=init_ops.glorot_uniform_initializer())
+            layer = tf.layers.dense(inputs=input, units=size, activation=tf.nn.relu6,
+                                    bias_initializer=init_ops.glorot_uniform_initializer())
         return layer
 
     @staticmethod
@@ -68,7 +69,7 @@ class NetworkBase:
         return dict
 
     def train(self, train_data_path, validate_data_path, save_path=None, batch_size=200, learning_rate=0.1, epochs=100,
-              print_step=100, validation_step=3):
+              print_step=100, validation_step=5):
         with tf.name_scope('total'):
             # The loss function
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.targets,
@@ -143,7 +144,7 @@ class NetworkBase:
 
     def inference(self, test_data_provider):
         saver = tf.train.Saver()
-        with tf.Session() as sess:
+        with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
             # Restore variables from disk.
             saver.restore(sess, self.pretrained_path)
             result = []
@@ -158,4 +159,19 @@ class NetworkBase:
         test_data_provider = pd.DataProvider(test_data_path, self.class_dict, self.img_size)
         res, target = self.inference(test_data_provider)
         names = [item[0] for item in sorted(self.class_dict.items(), key=lambda kv: kv[1])]
+        # print('Test error', numpy.mean())
         return classification_report(numpy.array(res), numpy.array(target), target_names=names)
+
+    def validate(self, validate_data_path):
+        validate_dp = pd.DataProvider(validate_data_path, self.class_dict, self.img_size)
+        saver = tf.train.Saver()
+        with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+            # Restore variables from disk.
+            saver.restore(sess, self.pretrained_path)
+            result = []
+            for valid_x, valid_y in tqdm.tqdm(validate_dp.get_data_batch(1)):
+                validate_accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.targets, 1),
+                                                                    tf.argmax(self.logits, 1)), tf.float16))
+                res = sess.run(validate_accuracy, feed_dict={self.inks: valid_x, self.targets: valid_y})
+                result.append(res)
+        print('\nValidation', numpy.mean(result))
