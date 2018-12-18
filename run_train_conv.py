@@ -13,11 +13,11 @@ if __name__ == "__main__":
         type=bool)
     parser.add_argument(
         "--batch_size",
-        default=16,
+        default=32,
         type=int)
     parser.add_argument(
         "--epochs",
-        default=100,
+        default=200,
         type=int)
     parser.add_argument(
         "--sizes",
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         type=str)
     parser.add_argument(
         "--pretrained_path",
-        default=None,
+        default='20_classes/checkpoints_conv/pass_4.ckpt',
         type=str)
     parser.add_argument(
         "--save_path",

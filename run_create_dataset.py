@@ -13,11 +13,11 @@ if __name__ == "__main__":
         type=int)
     parser.add_argument(
         "--num_classes",
-        default=20,
+        default=5,
         type=int)
     parser.add_argument(
         "--output_path",
-        default='./20_classes',
+        default='./5_classes',
         type=str)
     parser.add_argument(
         "--dataset_proportion",
